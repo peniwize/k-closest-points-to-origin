@@ -40,15 +40,24 @@
     a structure in the heap.
     Pop and return all (up to k) heap elements.
 
-    Time = O(n*log2(k))
-           n = number of points (points.size())
-           k = number of closest points to origin.
+    Solution #2:
 
-    Space = O(k)
+    Use std::nth_element(), which has an average time complexity of Θ(n),
+    to [partially] sort an array of indexes into the supplied points.
+    Then create the result from the first k indexes.
 */
 class Solution {
 public:
-    vector<vector<int>> kClosest(vector<vector<int>>& points, int k) {
+    /*
+        Solution #1
+
+        Time = O(n*log2(k))
+                n = number of points (points.size())
+                k = number of closest points to origin.
+
+        Space = O(k)
+    */
+    vector<vector<int>> kClosest_maxHeap(vector<vector<int>>& points, int k) {
         struct heap_element_t {
             int x{};
             int y{};
@@ -85,6 +94,70 @@ public:
             heap.pop();
         }
         return result;
+    }
+
+    /*
+        Solution #2
+
+        Time = Θ(n+n+n+k) => Θ(3n+k) => Θ(n)
+               O(n+n+n*log2(n)+k) => O(2n+n*log2(n)+k) => O(n*log2(n))
+               'k' is dropped because k <= n.
+
+        Space = O(n+n) => O(2n) => O(n)
+    */
+    vector<vector<int>> kClosest_sort(vector<vector<int>>& points, int k) {
+        assert(points.size() >= k);
+        if (points.size() < k) {
+            return {};
+        }
+
+        // Create array of [vector] magnitudes, one for each point.
+        auto const magnitudesSize = points.size();
+        int_fast32_t magnitudes[magnitudesSize];
+        std::transform(
+            points.begin()
+            , points.end()
+            , magnitudes
+            , [&](auto const& p) {
+                return p[0] * p[0] + p[1] * p[1];
+            }
+        );
+        
+        // Create array of indexes into points (this array will be sorted).
+        auto const pointsIndexesSize = points.size();
+        size_t pointsIndexes[pointsIndexesSize];
+        std::generate_n(
+            pointsIndexes
+            , pointsIndexesSize
+            , [i=0]() mutable {
+                return i++;
+            }
+        );
+        
+        // Sort the points indexes based on their corresponding magnitudes.
+        // Using std::nth_element() to do a partial sort that has an 
+        // average time complexity of Θ(n) and is O(n*log2(n)), which is
+        // typically much faster than a full sort such as std::sort().
+        std::nth_element(
+            pointsIndexes
+            , pointsIndexes + k - 1
+            , pointsIndexes + pointsIndexesSize
+            , [&magnitudes](auto const& lhs, auto const& rhs) {
+                return magnitudes[lhs] < magnitudes[rhs];
+            }
+        );
+
+        // Generate the result from the sorted indexes.
+        vector<vector<int>> result{};
+        while (k--) {
+            result.emplace_back(std::move(points[pointsIndexes[k]]));
+        }
+        return result;
+    }
+
+    vector<vector<int>> kClosest(vector<vector<int>>& points, int k) {
+//        return kClosest_maxHeap(points, k);
+        return kClosest_sort(points, k);
     }
 };
 
